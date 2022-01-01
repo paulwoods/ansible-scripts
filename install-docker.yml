@@ -1,0 +1,62 @@
+---
+- name: install docker
+  hosts: vm
+  become: true
+  become_user: root
+  tasks:
+    - name: apt update
+      apt: update_cache=yes
+    - name: apt install apt-transport-https
+      apt: 
+        name: apt-transport-https
+    - name: apt install ca-certificates
+      apt: 
+        name: ca-certificates
+    - name: apt install curl
+      apt: 
+        name: curl
+    - name: apt install software-properties-common
+      apt: 
+        name: software-properties-common
+    - name: Add an Apt signing key, uses whichever key is at the URL
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+    - name: Add specified repository into sources list
+      ansible.builtin.apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu impish stable
+        state: present
+    - name: Index new repo into the cache
+      apt:
+        name: "*"
+        state: latest
+        update_cache: yes
+        force_apt_get: yes
+    - name: actually install docker
+      apt:
+        name: "docker-ce"
+        state: latest
+    - name: Ensure docker-compose is installed and available
+      get_url:
+        url: https://github.com/docker/compose/releases/download/v2.2.2/docker-compose-darwin-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: 'u+x,g+x'
+    - name: create docker group
+      ansible.builtin.group:
+        name: docker
+        state: present
+    - name: add user to docker group
+      ansible.builtin.user:
+        name: mrpaulwoods
+        groups: docker
+        append: yes
+    - name: configure docker to start on boot
+      ansible.builtin.systemd:
+        name: docker.service
+        enabled: yes
+        masked: no
+    - name: configure containerd to start on boot
+      ansible.builtin.systemd:
+        name: containerd.service
+        enabled: yes
+        masked: no
